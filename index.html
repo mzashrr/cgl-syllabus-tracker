@@ -28,6 +28,12 @@
             </div>
         </header>
 
+        <!-- Warning message for missing Firebase config -->
+        <div id="firebase-warning" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-8 hidden" role="alert">
+            <p class="font-bold">Warning</p>
+            <p>Firebase is not configured. The tracker will not save your progress. To enable data persistence, please provide your Firebase configuration.</p>
+        </div>
+        
         <main>
             <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
                 <div class="flex items-center mb-4">
@@ -67,6 +73,7 @@
         let userId = null;
         let syllabusData = [];
         let unsubscribe = null;
+        let firebaseReady = false;
 
         const authInfoEl = document.getElementById('auth-info');
         const userIdDisplayEl = document.getElementById('user-id-display');
@@ -74,6 +81,7 @@
         const progressBarEl = document.getElementById('progress-bar');
         const progressTextEl = document.getElementById('progress-text');
         const progressChartEl = document.getElementById('progressChart');
+        const firebaseWarningEl = document.getElementById('firebase-warning');
 
         // SSC CGL Syllabus topics from search results
         const SSC_CGL_SYLLABUS = [
@@ -112,8 +120,13 @@
         // Initializes Firebase and sets up the listener
         const initFirebase = async () => {
             if (Object.keys(firebaseConfig).length === 0) {
-                console.error("Firebase config is missing. Please ensure the environment variables are set.");
+                console.warn("Firebase config is missing. The app will run, but progress will not be saved.");
                 userIdDisplayEl.textContent = "Error: Firebase config missing.";
+                firebaseWarningEl.classList.remove('hidden');
+                syllabusData = initializeSyllabusData();
+                renderSyllabus();
+                updateProgressBar();
+                renderSubjectChart();
                 return;
             }
 
@@ -121,6 +134,7 @@
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
+                firebaseReady = true;
 
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
@@ -192,8 +206,8 @@
 
         // Saves the current syllabus progress to Firestore
         const saveProgress = async () => {
-            if (!userId) {
-                console.error("User ID not available. Cannot save progress.");
+            if (!userId || !firebaseReady) {
+                console.warn("Firebase is not ready. Progress will not be saved.");
                 return;
             }
 
@@ -241,7 +255,7 @@
         // Handles checkbox changes and updates the syllabus data and Firestore
         const handleCheckboxChange = (event) => {
             const subject = event.target.dataset.subject;
-            const topicIndex = parseInt(event.target.dataset.topicIndex, 10);
+            const topicIndex = parseInt(event.target.dataset.topic-index, 10);
             const isChecked = event.target.checked;
 
             const section = syllabusData.find(s => s.subject === subject);
